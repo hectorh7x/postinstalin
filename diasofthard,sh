@@ -1,0 +1,92 @@
+#!/bin/bash
+
+# Hardware & Software Diagnostic Script for Rocky Linux 9.5
+# Must be run as root to access system-level information
+
+# Check if the script is being run as root
+if [[ "$EUID" -ne 0 ]]; then
+  echo "❌ This script must be run as root or with sudo."
+  exit 1
+fi
+
+echo "====================================="
+echo "     🧰 HARDWARE & SOFTWARE DIAGNOSTIC"
+echo "====================================="
+
+# === CPU Info ===
+echo -e "\n🔧 CPU:"
+# Show basic CPU architecture and configuration
+lscpu | grep -E "Architecture|Model name|Socket|Thread|Core|CPU\(s\)"
+
+# === Memory (RAM and Swap) ===
+echo -e "\n📦 MEMORY:"
+# Show used and free memory (RAM and SWAP) in human-readable format
+free -h
+
+# === Disk and Partitions ===
+echo -e "\n💽 DISKS AND PARTITIONS:"
+# Show block devices (disks, partitions, mount points)
+lsblk -o NAME,SIZE,TYPE,MOUNTPOINT
+
+echo -e "\n📊 DISK USAGE:"
+# Show filesystem usage with types and mount points
+df -hT
+
+# === SMART Status of Disks ===
+echo -e "\n🧪 DISK SMART STATUS:"
+# Loop through each disk and show SMART health status
+for disk in $(lsblk -ndo NAME,TYPE | awk '$2=="disk"{print $1}'); do
+    echo "Disk: /dev/$disk"
+    smartctl -H /dev/$disk 2>/dev/null | grep "SMART"
+done
+
+# === GPU Information ===
+echo -e "\n🎮 GRAPHICS CARD (GPU):"
+# List PCI devices that are VGA, 3D, or 2D controllers (i.e., GPUs)
+lspci | grep -i --color 'vga\|3d\|2d'
+
+# === Network Interfaces ===
+echo -e "\n🌐 NETWORK INTERFACES:"
+# Show brief list of all network interfaces with their IP addresses
+ip -brief address
+
+# === Motherboard & Manufacturer Info ===
+echo -e "\n🏷️ MOTHERBOARD & SYSTEM MANUFACTURER:"
+# Show motherboard manufacturer and product name
+dmidecode -t baseboard | grep -iE "Manufacturer|Product"
+# Show system-level manufacturer and product info
+dmidecode -t system | grep -iE "Manufacturer|Product"
+
+# === BIOS or UEFI Info ===
+echo -e "\n🧭 BIOS/UEFI INFO:"
+# Show BIOS vendor, version, and release date
+dmidecode -t bios | grep -iE "Vendor|Version|Release"
+
+# === Temperature and Fans ===
+echo -e "\n🌡️ TEMPERATURE & FAN SPEEDS:"
+# Show sensor readings for temperature and fan speeds
+sensors 2>/dev/null || echo "sensors not installed or not configured."
+
+# === Operating System Info ===
+echo -e "\n🖥️ OPERATING SYSTEM:"
+# Kernel version
+uname -a
+# OS name (e.g., Rocky Linux 9.5)
+[ -f /etc/os-release ] && cat /etc/os-release | grep -E "PRETTY_NAME"
+
+# === PCI Devices ===
+echo -e "\n📦 PCI DEVICES (Top 10):"
+# Show first 10 PCI devices (full list would be longer)
+lspci | head -n 10
+
+# === USB Devices ===
+echo -e "\n🔌 USB DEVICES:"
+# List all USB-connected devices
+lsusb
+
+# === Current System Load (CPU & Memory) ===
+echo -e "\n📈 CURRENT SYSTEM LOAD (TOP):"
+# Show top processes and system load
+top -b -n 1 | head -n 10
+
+echo -e "\n✅ DIAGNOSTIC COMPLETE."
