@@ -18,7 +18,7 @@ dnf config-manager --set-enabled crb
 
 echo "🧰 Installing essential tools..."
 dnf install -y epel-release
-dnf install -y vim git curl wget htop net-tools unzip nano bash-completion nmap mc nc tcpdump mtr rsync zip unzip tree
+dnf install -y vim git curl wget htop net-tools unzip nano bash-completion nmap mc nc tcpdump mtr rsync zip unzip tree tar
 
 echo "🧪 Installing hardware and diagnostic tools..."
 dnf install -y lshw lm_sensors iproute pciutils usbutils smartmontools dmidecode util-linux procps-ng
