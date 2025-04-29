@@ -1,59 +1,79 @@
 #!/bin/bash
 
 # ---------------------------
-# Configuración básica segura
+# 🛠️ Variables de configuración
 # ---------------------------
+USUARIO_ANSIBLE="ansible"
 
-# Actualizar el sistema
+# ---------------------------
+# 🔄 Actualizar el sistema operativo
+# ---------------------------
+echo "🔄 Actualizando el sistema..."
 sudo dnf update -y
 
-# Instalar python3 y servidor SSH
-sudo dnf install -y python3 openssh-server
+# ---------------------------
+# 📦 Instalar paquetes necesarios
+# ---------------------------
+echo "📦 Instalando python3, SSH server y firewalld..."
+sudo dnf install -y python3 openssh-server firewalld sudo
 
-# Asegurar que SSH esté activo
+# ---------------------------
+# 🚀 Habilitar y configurar servicios básicos
+# ---------------------------
+echo "🚀 Habilitando servicios SSH y Firewall..."
 sudo systemctl enable --now sshd
+sudo systemctl enable --now firewalld
+sudo firewall-cmd --permanent --add-service=ssh
+sudo firewall-cmd --reload
 
-# Crear usuario 'ansible' si no existe
-if id "ansible" &>/dev/null; then
-    echo "El usuario 'ansible' ya existe."
+# ---------------------------
+# 👤 Crear y preparar usuario para Ansible
+# ---------------------------
+if id "${USUARIO_ANSIBLE}" &>/dev/null; then
+    echo "✅ Usuario '${USUARIO_ANSIBLE}' ya existe."
 else
-    sudo adduser ansible
-    sudo usermod -aG wheel ansible
-    echo "Usuario 'ansible' creado y añadido al grupo wheel."
+    echo "👤 Creando usuario '${USUARIO_ANSIBLE}'..."
+    sudo adduser "${USUARIO_ANSIBLE}"
+    sudo usermod -aG wheel "${USUARIO_ANSIBLE}"
 fi
 
-# Crear el directorio SSH si no existe
-sudo mkdir -p /home/ansible/.ssh
-sudo chmod 700 /home/ansible/.ssh
-sudo chown ansible:ansible /home/ansible/.ssh
-
-# Configurar SSH para mayor seguridad
+# ---------------------------
+# 🔒 Endurecer configuración SSH
+# ---------------------------
+echo "🔒 Endureciendo configuración SSH..."
 sudo cp /etc/ssh/sshd_config /etc/ssh/sshd_config.bak
 
-# Endurecer configuración SSH
 sudo sed -i 's/^#*PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
 sudo sed -i 's/^#*PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
 sudo sed -i 's/^#*PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config
 sudo sed -i 's/^#*ChallengeResponseAuthentication.*/ChallengeResponseAuthentication no/' /etc/ssh/sshd_config
 sudo sed -i 's/^#*UseDNS.*/UseDNS no/' /etc/ssh/sshd_config
-
-# Opcional: limitar el número máximo de intentos
 sudo sed -i 's/^#*MaxAuthTries.*/MaxAuthTries 3/' /etc/ssh/sshd_config
 
-# Opcional: añadir lista explícita de usuarios permitidos (seguridad adicional)
-if ! grep -q "^AllowUsers ansible" /etc/ssh/sshd_config; then
-    echo "AllowUsers ansible" | sudo tee -a /etc/ssh/sshd_config
+# Asegurar que solo el usuario ansible puede conectarse por SSH
+if ! grep -q "^AllowUsers ${USUARIO_ANSIBLE}" /etc/ssh/sshd_config; then
+    echo "AllowUsers ${USUARIO_ANSIBLE}" | sudo tee -a /etc/ssh/sshd_config
 fi
 
-# Reiniciar el servicio SSH para aplicar cambios
 sudo systemctl restart sshd
 
-# Configurar sudoers para ansible SIN contraseña pero controlado
-if ! sudo grep -q "^ansible ALL=(ALL) NOPASSWD: ALL" /etc/sudoers; then
-    echo "ansible ALL=(ALL) NOPASSWD: ALL" | sudo EDITOR='tee -a' visudo
+# ---------------------------
+# 🧩 Configurar sudo sin contraseña para Ansible
+# ---------------------------
+echo "🧩 Configurando sudo sin contraseña para '${USUARIO_ANSIBLE}'..."
+if ! sudo grep -q "^${USUARIO_ANSIBLE} ALL=(ALL) NOPASSWD: ALL" /etc/sudoers; then
+    echo "${USUARIO_ANSIBLE} ALL=(ALL) NOPASSWD: ALL" | sudo EDITOR='tee -a' visudo
 fi
 
 # ---------------------------
-# Recordatorio Final
+# 📋 Mensaje final para completar configuración
 # ---------------------------
-echo "Recuerda agregar la clave pública SSH al usuario 'ansible' en /home/ansible/.ssh/authorized_keys"
+echo
+echo "✅ El nodo ha sido alistado correctamente para ser gestionado por Ansible."
+echo
+echo "⚡ IMPORTANTE: Desde el servidor controlador ahora debes ejecutar:"
+echo "ssh-copy-id -i /home/ansible/.ssh/id_rsa.pub ${USUARIO_ANSIBLE}@IP_DEL_NODO"
+echo
+echo "💬 Reemplaza 'IP_DEL_NODO' por la IP real de este nodo."
+echo
+
