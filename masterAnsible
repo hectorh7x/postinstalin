@@ -1,0 +1,92 @@
+#!/bin/bash
+
+# --------------------------------------
+# 🛠️ VARIABLES (ajusta si deseas)
+# --------------------------------------
+USUARIO_ANSIBLE="ansible"
+SSH_KEY_COMMENT="controlador-ansible"
+SSH_KEY_FILE="/home/${USUARIO_ANSIBLE}/.ssh/id_rsa"
+
+# --------------------------------------
+# 📋 ACTUALIZAR EL SISTEMA
+# --------------------------------------
+echo "🔄 Actualizando sistema..."
+sudo dnf update -y
+
+# --------------------------------------
+# 📋 INSTALAR PAQUETES NECESARIOS
+# --------------------------------------
+echo "📦 Instalando paquetes base..."
+sudo dnf install -y epel-release
+sudo dnf install -y python3 python3-pip openssh-server sudo firewalld git
+
+# Instalar Ansible desde EPEL
+echo "📦 Instalando Ansible..."
+sudo dnf install -y ansible
+
+# --------------------------------------
+# 📋 CONFIGURAR FIREWALL
+# --------------------------------------
+echo "🧱 Configurando firewall..."
+sudo systemctl enable --now firewalld
+sudo firewall-cmd --permanent --add-service=ssh
+sudo firewall-cmd --reload
+
+# --------------------------------------
+# 📋 CREAR USUARIO DEDICADO PARA ANSIBLE
+# --------------------------------------
+if id "${USUARIO_ANSIBLE}" &>/dev/null; then
+    echo "✅ Usuario ${USUARIO_ANSIBLE} ya existe."
+else
+    echo "👤 Creando usuario ${USUARIO_ANSIBLE}..."
+    sudo adduser "${USUARIO_ANSIBLE}"
+    sudo usermod -aG wheel "${USUARIO_ANSIBLE}"
+fi
+
+# --------------------------------------
+# 📋 ENDURECER SSH
+# --------------------------------------
+echo "🔒 Endureciendo SSH..."
+sudo cp /etc/ssh/sshd_config /etc/ssh/sshd_config.bak
+
+sudo sed -i 's/^#*PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
+sudo sed -i 's/^#*PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
+sudo sed -i 's/^#*PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config
+sudo sed -i 's/^#*ChallengeResponseAuthentication.*/ChallengeResponseAuthentication no/' /etc/ssh/sshd_config
+sudo sed -i 's/^#*UseDNS.*/UseDNS no/' /etc/ssh/sshd_config
+sudo sed -i 's/^#*MaxAuthTries.*/MaxAuthTries 3/' /etc/ssh/sshd_config
+
+# Restringir SSH solo al usuario ansible
+if ! grep -q "^AllowUsers ${USUARIO_ANSIBLE}" /etc/ssh/sshd_config; then
+    echo "AllowUsers ${USUARIO_ANSIBLE}" | sudo tee -a /etc/ssh/sshd_config
+fi
+
+sudo systemctl restart sshd
+
+# --------------------------------------
+# 📋 CONFIGURAR SUDO SIN CONTRASEÑA PARA ANSIBLE
+# --------------------------------------
+echo "🧩 Configurando sudo sin contraseña para ${USUARIO_ANSIBLE}..."
+if ! sudo grep -q "^${USUARIO_ANSIBLE} ALL=(ALL) NOPASSWD: ALL" /etc/sudoers; then
+    echo "${USUARIO_ANSIBLE} ALL=(ALL) NOPASSWD: ALL" | sudo EDITOR='tee -a' visudo
+fi
+
+# --------------------------------------
+# 📋 CREAR CLAVES SSH DEL USUARIO ANSIBLE
+# --------------------------------------
+echo "🔑 Creando par de claves SSH para ${USUARIO_ANSIBLE}..."
+sudo -u "${USUARIO_ANSIBLE}" mkdir -p "/home/${USUARIO_ANSIBLE}/.ssh"
+sudo -u "${USUARIO_ANSIBLE}" chmod 700 "/home/${USUARIO_ANSIBLE}/.ssh"
+
+if [ ! -f "${SSH_KEY_FILE}" ]; then
+    sudo -u "${USUARIO_ANSIBLE}" ssh-keygen -t rsa -b 4096 -f "${SSH_KEY_FILE}" -N "" -C "${SSH_KEY_COMMENT}"
+    echo "✅ Llave SSH creada en ${SSH_KEY_FILE}"
+else
+    echo "✅ Llave SSH ya existe en ${SSH_KEY_FILE}"
+fi
+
+# --------------------------------------
+# 📋 CONFIGURACIÓN FINAL
+# --------------------------------------
+echo "🛡️ Configuración de controlador Ansible completada de manera segura."
+echo "➡️ Ahora puedes usar la clave pública: ${SSH_KEY_FILE}.pub para agregar nodos."
