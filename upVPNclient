@@ -1,0 +1,38 @@
+#!/bin/bash
+
+# ---------------------------
+# 🛠️ Paso 1: Instalar repositorio EPEL y OpenVPN
+# ---------------------------
+echo "📦 Instalando EPEL y OpenVPN..."
+sudo dnf install -y epel-release
+sudo dnf install -y openvpn
+
+# ---------------------------
+# 📁 Paso 2: Crear carpeta para configuración del cliente
+# ---------------------------
+echo "📁 Creando carpeta para cliente OpenVPN..."
+sudo mkdir -p /etc/openvpn/client
+sudo chmod 700 /etc/openvpn/client
+sudo chown root:root /etc/openvpn/client
+
+# ---------------------------
+# 🧱 Paso 3: Reglas de firewall (opcional si firewall activo)
+# ---------------------------
+echo "🧱 Asegurando salida por tun (VPN)..."
+sudo firewall-cmd --permanent --add-service=openvpn
+sudo firewall-cmd --reload
+
+# ---------------------------
+# 📋 Paso 4: Mensaje final
+# ---------------------------
+echo
+echo "✅ El nodo está listo para conectarse a un servidor OpenVPN."
+echo "📤 Ahora copia tu archivo .ovpn a:"
+echo "    /etc/openvpn/client/"
+echo
+echo "📌 Ejemplo:"
+echo "    sudo cp cliente1.ovpn /etc/openvpn/client/"
+echo
+echo "🧪 Luego puedes probar con:"
+echo "    sudo openvpn --config /etc/openvpn/client/cliente1.ovpn"
+echo
