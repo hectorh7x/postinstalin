@@ -1,0 +1,59 @@
+#!/bin/bash
+
+# ---------------------------
+# Configuración básica segura
+# ---------------------------
+
+# Actualizar el sistema
+sudo dnf update -y
+
+# Instalar python3 y servidor SSH
+sudo dnf install -y python3 openssh-server
+
+# Asegurar que SSH esté activo
+sudo systemctl enable --now sshd
+
+# Crear usuario 'ansible' si no existe
+if id "ansible" &>/dev/null; then
+    echo "El usuario 'ansible' ya existe."
+else
+    sudo adduser ansible
+    sudo usermod -aG wheel ansible
+    echo "Usuario 'ansible' creado y añadido al grupo wheel."
+fi
+
+# Crear el directorio SSH si no existe
+sudo mkdir -p /home/ansible/.ssh
+sudo chmod 700 /home/ansible/.ssh
+sudo chown ansible:ansible /home/ansible/.ssh
+
+# Configurar SSH para mayor seguridad
+sudo cp /etc/ssh/sshd_config /etc/ssh/sshd_config.bak
+
+# Endurecer configuración SSH
+sudo sed -i 's/^#*PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
+sudo sed -i 's/^#*PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
+sudo sed -i 's/^#*PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config
+sudo sed -i 's/^#*ChallengeResponseAuthentication.*/ChallengeResponseAuthentication no/' /etc/ssh/sshd_config
+sudo sed -i 's/^#*UseDNS.*/UseDNS no/' /etc/ssh/sshd_config
+
+# Opcional: limitar el número máximo de intentos
+sudo sed -i 's/^#*MaxAuthTries.*/MaxAuthTries 3/' /etc/ssh/sshd_config
+
+# Opcional: añadir lista explícita de usuarios permitidos (seguridad adicional)
+if ! grep -q "^AllowUsers ansible" /etc/ssh/sshd_config; then
+    echo "AllowUsers ansible" | sudo tee -a /etc/ssh/sshd_config
+fi
+
+# Reiniciar el servicio SSH para aplicar cambios
+sudo systemctl restart sshd
+
+# Configurar sudoers para ansible SIN contraseña pero controlado
+if ! sudo grep -q "^ansible ALL=(ALL) NOPASSWD: ALL" /etc/sudoers; then
+    echo "ansible ALL=(ALL) NOPASSWD: ALL" | sudo EDITOR='tee -a' visudo
+fi
+
+# ---------------------------
+# Recordatorio Final
+# ---------------------------
+echo "Recuerda agregar la clave pública SSH al usuario 'ansible' en /home/ansible/.ssh/authorized_keys"
