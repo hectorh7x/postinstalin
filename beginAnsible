@@ -4,22 +4,43 @@
 # Configuración básica segura
 # ---------------------------
 
-# Actualizar el sistema
-sudo dnf update -y
+# Detectar el sistema operativo
+if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    OS=$ID
+else
+    echo "No se pudo detectar el sistema operativo."
+    exit 1
+fi
 
-# Instalar python3 y servidor SSH
-sudo dnf install -y python3 openssh-server
+echo "Sistema detectado: $PRETTY_NAME"
+
+# Actualizar el sistema
+if [[ "$OS" == "ubuntu" ]]; then
+    sudo apt update -y && sudo apt upgrade -y
+    sudo apt install -y python3 openssh-server
+    SSH_SERVICE="ssh"
+    SUDO_GROUP="sudo"
+elif [[ "$OS" == "rocky" || "$OS" == "rocky-linux" ]]; then
+    sudo dnf update -y
+    sudo dnf install -y python3 openssh-server
+    SSH_SERVICE="sshd"
+    SUDO_GROUP="wheel"
+else
+    echo "Sistema operativo no soportado por este script."
+    exit 1
+fi
 
 # Asegurar que SSH esté activo
-sudo systemctl enable --now sshd
+sudo systemctl enable --now $SSH_SERVICE
 
 # Crear usuario 'ansible' si no existe
 if id "ansible" &>/dev/null; then
     echo "El usuario 'ansible' ya existe."
 else
     sudo adduser ansible
-    sudo usermod -aG wheel ansible
-    echo "Usuario 'ansible' creado y añadido al grupo wheel."
+    sudo usermod -aG $SUDO_GROUP ansible
+    echo "Usuario 'ansible' creado y añadido al grupo $SUDO_GROUP."
 fi
 
 # Crear el directorio SSH si no existe
@@ -46,7 +67,7 @@ if ! grep -q "^AllowUsers ansible" /etc/ssh/sshd_config; then
 fi
 
 # Reiniciar el servicio SSH para aplicar cambios
-sudo systemctl restart sshd
+sudo systemctl restart $SSH_SERVICE
 
 # Configurar sudoers para ansible SIN contraseña pero controlado
 if ! sudo grep -q "^ansible ALL=(ALL) NOPASSWD: ALL" /etc/sudoers; then
