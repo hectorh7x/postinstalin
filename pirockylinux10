@@ -1,0 +1,159 @@
+#!/bin/bash
+
+# ==============================================================================
+# Rocky Linux 10 Post-Install Script (Interactive & Unattended)
+# Must be run as root or using sudo
+# ==============================================================================
+
+set -eo pipefail
+
+# Verificación de root
+if [[ "$EUID" -ne 0 ]]; then
+  echo "❌ Este script debe ejecutarse como root o usando sudo."
+  exit 1
+fi
+
+echo "🔧 Habilitando repositorios esenciales (EPEL y CRB) en Rocky Linux 10..."
+dnf install -y epel-release
+dnf config-manager --set-enabled crb
+
+echo "🔧 Actualizando el sistema..."
+dnf upgrade -y
+
+# ------------------------------------------------------------------------------
+# HERRAMIENTAS ESENCIALES Y DE RED (Instalación por defecto - Orden Alfabético)
+# ------------------------------------------------------------------------------
+# - bash-completion: Autocompletado avanzado para comandos en la terminal.
+# - bind-utils: Utilidades de consulta DNS esenciales (dig, nslookup).
+# - curl: Descarga de archivos y peticiones HTTP desde la línea de comandos.
+# - git: Sistema de control de versiones.
+# - htop: Monitor interactivo de procesos del sistema.
+# - mc (Midnight Commander): Gestor de archivos visual en modo texto.
+# - mtr: Diagnóstico de red que combina ping y traceroute.
+# - nano: Editor de texto simple en terminal.
+# - nc: Herramienta multipropósito para redes y sockets TCP/UDP.
+# - net-tools: Utilidades de red clásicas (netstat, ifconfig).
+# - nmap: Escáner de puertos y auditoría de red.
+# - rsync: Sincronización y copia rápida de archivos locales o remotos.
+# - tar: Compresión y descompresión de archivos.
+# - tree: Visualizador de directorios en formato de árbol.
+# - unzip: Descompresión de archivos ZIP.
+# - vim: Editor de texto avanzado en terminal.
+# - wget: Descarga de archivos desde la web.
+# - zip: Compresión de archivos en formato ZIP.
+# - zstd: Algoritmo de compresión moderno y de ultra alto rendimiento.
+echo "🧰 Instalando herramientas esenciales y de red..."
+dnf install -y bash-completion bind-utils curl git htop mc mtr nano nc net-tools nmap rsync tar tree unzip vim wget zip zstd
+
+
+# ------------------------------------------------------------------------------
+# GRUPO 1: HERRAMIENTAS MODERNAS Y ADICIONALES (Opcional - Orden Alfabético)
+# ------------------------------------------------------------------------------
+echo ""
+read -p "❓ ¿Deseas instalar el grupo de herramientas modernas y adicionales (bat, btop, eza, fd, etc.)? (s/n): " install_modern
+if [[ "$install_modern" =~ ^[Ss]$ ]]; then
+    # - bat: Reemplazo de 'cat' con resaltado de sintaxis e integración con Git.
+    # - btop: Monitor de recursos moderno, detallado y visual con soporte de ratón.
+    # - eza: Reemplazo moderno y colorido para el comando 'ls' (con soporte de Git).
+    # - fd-find: Alternativa rápida, amigable e intuitiva al comando 'find'.
+    # - fzf: Buscador difuso (fuzzy finder) interactivo para archivos e historial.
+    # - inotify-tools: Utilidades para monitorear cambios en archivos en tiempo real.
+    # - jq: Procesador liviano y flexible de archivos JSON.
+    # - ncdu: Analizador visual de uso de disco en modo texto.
+    # - ripgrep (rg): Herramienta de búsqueda de texto ultrarrápida.
+    echo "🧰 Instalando herramientas modernas y adicionales..."
+    dnf install -y bat btop eza fd-find fzf inotify-tools jq ncdu ripgrep
+else
+    echo "⏭️ Omitiendo herramientas modernas y adicionales."
+fi
+
+
+# ------------------------------------------------------------------------------
+# GRUPO 2: ENTORNO DE CONTENEDORES - DOCKER (Opcional)
+# ------------------------------------------------------------------------------
+echo ""
+read -p "❓ ¿Deseas instalar Docker y Docker Compose? (s/n): " install_docker
+if [[ "$install_docker" =~ ^[Ss]$ ]]; then
+    # - docker-ce: Motor de contenedores oficial.
+    # - docker-compose-plugin: Orquestador de contenedores.
+    echo "🐳 Instalando Docker y Docker Compose..."
+    dnf install -y dnf-plugins-core
+    dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+    dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+    systemctl enable --now docker
+    echo "✅ Docker instalado y activo correctamente."
+else
+    echo "⏭️ Omitiendo la instalación de Docker."
+fi
+
+
+# ------------------------------------------------------------------------------
+# GRUPO 3: AUDITORÍA DE SEGURIDAD, HARDENING Y VULNERABILIDADES (Opcional - Orden Alfabético)
+# ------------------------------------------------------------------------------
+echo ""
+read -p "❓ ¿Deseas instalar herramientas de auditoría, OpenSCAP, Trivy y Fail2ban? (s/n): " install_audit
+if [[ "$install_audit" =~ ^[Ss]$ ]]; then
+    # - audit: Sistema de auditoría y registro de llamadas al sistema a nivel de kernel.
+    # - fail2ban: Prevención de ataques de fuerza bruta (bloqueo automático de IPs).
+    # - openscap-scanner: Motor de evaluación y perfiles SCAP de cumplimiento normativo.
+    # - lynis: Auditoría de seguridad y análisis heurístico de configuraciones.
+    # - scap-security-guide: Guías de seguridad y perfiles de cumplimiento normativo (CIS).
+    # - trivy: Escáner integral para detección de vulnerabilidades (CVEs).
+    echo "🛡️ Instalando OpenSCAP, Trivy y herramientas de hardening..."
+    
+    # Agregar repositorio oficial de Trivy para el ecosistema RHEL/Rocky
+    cat << 'EOF' > /etc/yum.repos.d/trivy.repo
+[trivy]
+name=Trivy repository
+baseurl=https://aquasecurity.github.io/trivy-repo/rpm/releases/$basearch/
+gpgcheck=1
+enabled=1
+gpgkey=https://aquasecurity.github.io/trivy-repo/rpm/pubkey.gpg
+EOF
+
+    dnf install -y audit fail2ban lynis openscap-scanner scap-security-guide trivy
+    systemctl enable --now fail2ban
+    echo "✅ Herramientas de auditoría, OpenSCAP y Trivy instaladas correctamente."
+else
+    echo "⏭️ Omitiendo herramientas de auditoría."
+fi
+
+
+# ------------------------------------------------------------------------------
+# HERRAMIENTAS DE HARDWARE Y DIAGNÓSTICO (Instalación por defecto - Orden Alfabético)
+# ------------------------------------------------------------------------------
+# - dmidecode: Extrae información del hardware del sistema desde la tabla DMI/SMBIOS.
+# - iotop: Monitor de uso de E/S (I/O) de disco en tiempo real por proceso.
+# - iproute2: Herramientas modernas de gestión de red.
+# - lm_sensors: Monitorea temperaturas de la CPU, voltajes y ventiladores.
+# - lshw: Muestra información detallada sobre la configuración de hardware.
+# - pciutils: Listan dispositivos PCI conectados al sistema.
+# - procps-ng: Utilidades básicas del núcleo y gestión de procesos del sistema.
+# - smartmontools: Monitorea el estado de salud de discos duros/SSD (S.M.A.R.T.).
+# - usbutils: Listan dispositivos USB conectados al sistema.
+# - util-linux: Utilidades básicas del sistema y particionado.
+echo "🧪 Instalando herramientas de hardware y diagnóstico..."
+dnf install -y dmidecode iotop iproute2 lm_sensors lshw pciutils procps-ng smartmontools usbutils util-linux
+
+# ------------------------------------------------------------------------------
+# SEGURIDAD Y CORTAFUEGOS (Firewalld)
+# ------------------------------------------------------------------------------
+# - firewalld: Cortafuegos dinámico predeterminado en Enterprise Linux.
+echo "🔥 Configurando Firewalld (SSH solamente)..."
+systemctl enable --now firewalld
+firewall-cmd --permanent --add-service=ssh
+firewall-cmd --reload
+
+# ------------------------------------------------------------------------------
+# MONITOREO Y RENDIMIENTO HISTÓRICO
+# ------------------------------------------------------------------------------
+# - sysstat: Recopila métricas históricas de rendimiento (CPU, I/O de disco, memoria).
+echo "📊 Instalando herramientas de monitoreo..."
+dnf install -y sysstat
+systemctl enable --now sysstat
+
+echo "🧹 Limpiando el sistema..."
+dnf autoremove -y
+dnf clean all
+
+echo "✅ Configuración post-instalación completada. ¡Rocky Linux 10 está listo!"
