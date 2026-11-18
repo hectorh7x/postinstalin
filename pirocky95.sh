@@ -43,7 +43,7 @@ dnf upgrade -y
 # - zip: Compresión de archivos en formato ZIP.
 # - zstd: Algoritmo de compresión moderno y de ultra alto rendimiento.
 echo "🧰 Instalando herramientas esenciales y de red..."
-dnf install -y bash-completion bind-utils curl git htop mc mtr nano nc net-tools nmap rsync tar tree unzip vim wget zip zstd
+dnf install -y bash-completion bind-utils curl git htop mc mtr nano nc net-tools nmap rsync tar tree unzip vim wget zip zstd timeshift
 
 
 # ------------------------------------------------------------------------------
