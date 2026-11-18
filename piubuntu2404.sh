@@ -40,7 +40,7 @@ apt update -y && apt upgrade -y
 # - zip: Compresión de archivos en formato ZIP.
 # - zstd: Algoritmo de compresión moderno y de ultra alto rendimiento.
 echo "🧰 Instalando herramientas esenciales y de red..."
-apt install -y bash-completion curl dnsutils git htop mc mtr nano netcat net-tools nmap rsync tar tree unzip vim wget zip zstd
+apt install -y bash-completion curl dnsutils git htop mc mtr nano netcat net-tools nmap rsync tar tree unzip vim wget zip zstd timeshift
 
 
 # ------------------------------------------------------------------------------
